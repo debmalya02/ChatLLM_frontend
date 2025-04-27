@@ -1,15 +1,22 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
-import type { Conversation, Message, ModelType, UserPreferences } from '../types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { v4 as uuidv4 } from "uuid";
+import type {
+  Conversation,
+  Message,
+  ModelType,
+  UserPreferences,
+} from "../types";
+import { User } from "@supabase/supabase-js";
 
 interface ChatState {
   conversations: Conversation[];
   currentConversationId: string | null;
   userPreferences: UserPreferences;
   isProcessing: boolean;
-  addConversation: () => void;
-  addMessage: (content: string, role: 'user' | 'assistant') => void;
+  user: User | null;
+  addConversation: () => string;
+  addMessage: (content: string, role: "user" | "assistant") => void;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
   deleteConversation: (id: string) => void;
   setCurrentConversation: (id: string) => void;
@@ -17,7 +24,11 @@ interface ChatState {
   toggleFavorite: (id: string) => void;
   updateUserPreferences: (preferences: Partial<UserPreferences>) => void;
   setProcessing: (processing: boolean) => void;
+  setUser: (user: User | null) => void;
 }
+
+
+
 
 const useStore = create<ChatState>()(
   persist(
@@ -25,19 +36,22 @@ const useStore = create<ChatState>()(
       conversations: [],
       currentConversationId: null,
       isProcessing: false,
+      user: null,
       userPreferences: {
-        theme: 'system',
-        fontSize: 'md',
-        messageSpacing: 'comfortable',
-        codeTheme: 'github',
+        theme: "system",
+        fontSize: "md",
+        messageSpacing: "comfortable",
+        codeTheme: "github",
       },
+
+      setUser: (user) => set({ user }),
 
       addConversation: () => {
         const newConversation: Conversation = {
           id: uuidv4(),
-          title: 'New Chat',
+          title: "New Chat",
           messages: [],
-          model: 'gpt-4',
+          model: "gpt-4",
           createdAt: Date.now(),
           updatedAt: Date.now(),
           favorite: false,
@@ -47,17 +61,23 @@ const useStore = create<ChatState>()(
           conversations: [newConversation, ...state.conversations],
           currentConversationId: newConversation.id,
         }));
+        console.log("New conversation added:", newConversation.id);
+        return newConversation.id;
       },
 
-      addMessage: (content: string, role: 'user' | 'assistant') => {
+      addMessage: (content: string, role: "user" | "assistant") => {
         const { currentConversationId, conversations } = get();
-        if (!currentConversationId) return;
+        if (!currentConversationId) 
+          
+          return;
 
         const newMessage: Message = {
           id: uuidv4(),
           content,
           role,
-          model: conversations.find((c) => c.id === currentConversationId)?.model || 'gpt-4',
+          model:
+            conversations.find((c) => c.id === currentConversationId)?.model ||
+            "gpt-4",
           timestamp: Date.now(),
         };
 
@@ -126,7 +146,11 @@ const useStore = create<ChatState>()(
       },
     }),
     {
-      name: 'chat-storage',
+      name: "chat-storage",
+      partialize: (state) => ({
+        conversations: state.conversations,
+        userPreferences: state.userPreferences,
+      }),
     }
   )
 );

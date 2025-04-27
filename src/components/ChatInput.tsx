@@ -55,7 +55,7 @@ export const ChatInput: React.FC = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+      className="border-t border-border bg-background p-4 min-h-20 transition-colors"
     >
       <div className="relative flex items-center">
         <Button
@@ -73,7 +73,7 @@ export const ChatInput: React.FC = () => {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
-          className="max-h-32 w-full resize-none rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-12 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+          className="max-h-32 w-full resize-none rounded-lg border border-input bg-background pl-12 pr-12 py-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           rows={1}
         />
         <Button

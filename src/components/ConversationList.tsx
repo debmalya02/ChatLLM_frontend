@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { MessageSquare, Star, Trash2, Pencil, Check, X } from 'lucide-react';
-import useStore from '../store/useStore';
-import { Button } from './ui/button';
-import { formatDistanceToNow } from 'date-fns';
+import React, { useState } from "react";
+import { MessageSquare, Star, Trash2, Pencil, Check, X } from "lucide-react";
+import useStore from "../store/useStore";
+import { formatDistanceToNow } from "date-fns";
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "./ui/sidebar";
 
 interface EditingState {
   id: string;
@@ -22,7 +22,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     setCurrentConversation,
     deleteConversation,
     toggleFavorite,
-    addConversation,
     updateConversation,
   } = useStore();
 
@@ -44,10 +43,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleEditSave();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       handleEditCancel();
     }
   };
@@ -60,116 +59,95 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   return (
-    <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-800">
-      <div className="p-4 pt-16 md:pt-4">
-        <Button
-          onClick={() => {
-            addConversation();
-            onConversationSelect?.();
-          }}
-          className="w-full"
+    <SidebarMenu className="p-2">
+      {conversations.map((conversation) => (
+        <SidebarMenuItem
+          key={conversation.id}
+          className="mb-2 overflow-hidden rounded-md border border-transparent hover:bg-accent/5 transition-colors hover:border-border"
         >
-          New Chat
-        </Button>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {conversations.map((conversation) => (
-          <div
-            key={conversation.id}
-            className={`flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
-              currentConversationId === conversation.id ? 'bg-gray-100 dark:bg-gray-700' : ''
-            }`}
-            onClick={() => handleConversationClick(conversation.id)}
-          >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <MessageSquare className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" />
-              <div className="flex-1 min-w-0">
+          <div className="group relative flex w-full items-center">
+            <SidebarMenuButton
+              isActive={currentConversationId === conversation.id}
+              onClick={() => handleConversationClick(conversation.id)}
+              className="pr-24 "
+            >
+              <MessageSquare className="h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1 ">
                 {editing?.id === conversation.id ? (
                   <input
                     type="text"
                     value={editing.title}
-                    onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                    onChange={(e) =>
+                      setEditing({ ...editing, title: e.target.value })
+                    }
                     onKeyDown={handleKeyDown}
-                    className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded border border-input bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <>
-                    <h3 className="font-medium truncate">{conversation.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {formatDistanceToNow(conversation.updatedAt, { addSuffix: true })}
-                    </p>
-                  </>
+                  <div className="flex flex-col min-w-0">
+                    <span className="truncate font-medium">
+                      {conversation.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {formatDistanceToNow(conversation.updatedAt, {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </div>
                 )}
               </div>
-            </div>
-            <div className="flex gap-1 ml-2">
+            </SidebarMenuButton>
+
+            <div className="absolute right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               {editing?.id === conversation.id ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditSave();
-                    }}
+                  <button
+                    onClick={handleEditSave}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Check className="h-4 w-4 text-green-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditCancel();
-                    }}
+                  </button>
+                  <button
+                    onClick={handleEditCancel}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <X className="h-4 w-4 text-red-500" />
-                  </Button>
+                    <X className="h-4 w-4 text-destructive" />
+                  </button>
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditStart(conversation);
-                    }}
+                  <button
+                    onClick={() => handleEditStart(conversation)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <Pencil className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(conversation.id);
-                    }}
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => toggleFavorite(conversation.id)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Star
-                      className={`h-4 w-4 ${
-                        conversation.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-500 dark:text-gray-400'
-                      }`}
+                      className={
+                        conversation.favorite
+                          ? "fill-yellow-400 text-yellow-400"
+                          : ""
+                      }
                     />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteConversation(conversation.id);
-                    }}
+                  </button>
+                  <button
+                    onClick={() => deleteConversation(conversation.id)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <Trash2 className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  </Button>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </>
               )}
             </div>
           </div>
-        ))}
-      </div>
-    </div>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 };
