@@ -6,6 +6,7 @@ import {
   Sun,
   Laptop,
   Check,
+  Loader2,
 } from "lucide-react";
 import {
   Sidebar as ShadcnSidebar,
@@ -28,6 +29,8 @@ import { useNavigate } from "react-router-dom";
 import useStore from "../store/useStore";
 import supabase from "../supabase";
 import { useIsMobile } from "../hooks/use-mobile";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function Sidebar({
   isOpen,
@@ -36,12 +39,14 @@ export default function Sidebar({
   isOpen?: boolean;
   onClose?: () => void;
 }) {
+  const [isCreating, setIsCreating] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
     user,
     setUser,
     addConversation,
+    setCurrentConversation,
     userPreferences,
     updateUserPreferences,
   } = useStore();
@@ -54,6 +59,26 @@ export default function Sidebar({
 
   const handleThemeChange = (theme: "light" | "dark" | "system") => {
     updateUserPreferences({ theme });
+  };
+
+  const handleAddConversation = async () => {
+    if (isCreating) return;
+
+    setIsCreating(true);
+    try {
+      const newId = await addConversation();
+      if (newId) {
+        setCurrentConversation(newId);
+        if (isMobile && onClose) {
+          onClose();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+      toast.error("Failed to create new conversation. Please try again.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const sidebarContent = (
@@ -70,9 +95,14 @@ export default function Sidebar({
             variant="ghost"
             size="icon"
             className="rounded-full"
-            onClick={() => addConversation()}
+            onClick={handleAddConversation}
+            disabled={isCreating}
           >
-            <Plus className="h-5 w-5" />
+            {isCreating ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Plus className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </SidebarHeader>

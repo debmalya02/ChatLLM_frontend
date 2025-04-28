@@ -33,7 +33,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
   const handleEditSave = () => {
     if (editing) {
-      updateConversation(editing.id, { title: editing.title.trim() });
+      const trimmedTitle = editing.title.trim();
+      if (trimmedTitle) {
+        updateConversation(editing.id, { title: trimmedTitle });
+      }
       setEditing(null);
     }
   };
@@ -58,21 +61,49 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
   };
 
+  // Filter out any potential duplicate conversations and ensure stable sort
+  const uniqueConversations = React.useMemo(() => {
+    const seen = new Set();
+    return conversations.filter((conv) => {
+      if (seen.has(conv.id)) {
+        return false;
+      }
+      seen.add(conv.id);
+      return true;
+    });
+  }, [conversations]);
+
+  // Sort conversations by favorite status and updated_at date, ensuring stable sort
+  const sortedConversations = React.useMemo(() => {
+    return [...uniqueConversations].sort((a, b) => {
+      if (a.favorite !== b.favorite) {
+        return a.favorite ? -1 : 1;
+      }
+      const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+      if (aTime !== bTime) {
+        return bTime - aTime;
+      }
+      // Ensure stable sort by comparing IDs
+      return a.id.localeCompare(b.id);
+    });
+  }, [uniqueConversations]);
+
   return (
     <SidebarMenu className="p-2">
-      {conversations.map((conversation) => (
+      {sortedConversations.map((conversation) => (
         <SidebarMenuItem
-          key={conversation.id}
+          key={`conv-${conversation.id}`}
           className="mb-2 overflow-hidden rounded-md border border-transparent hover:bg-accent/5 transition-colors hover:border-border"
         >
           <div className="group relative flex w-full items-center">
             <SidebarMenuButton
               isActive={currentConversationId === conversation.id}
               onClick={() => handleConversationClick(conversation.id)}
-              className="pr-24 "
+              className="pr-24"
             >
               <MessageSquare className="h-4 w-4 shrink-0" />
-              <div className="min-w-0 flex-1 ">
+              <div className="min-w-0 flex-1">
                 {editing?.id === conversation.id ? (
                   <input
                     type="text"
@@ -91,9 +122,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       {conversation.title}
                     </span>
                     <span className="text-xs text-muted-foreground truncate">
-                      {formatDistanceToNow(conversation.updatedAt, {
-                        addSuffix: true,
-                      })}
+                      {conversation.updated_at
+                        ? formatDistanceToNow(
+                            new Date(conversation.updated_at),
+                            {
+                              addSuffix: true,
+                            }
+                          )
+                        : "Just now"}
                     </span>
                   </div>
                 )}
@@ -104,13 +140,19 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               {editing?.id === conversation.id ? (
                 <>
                   <button
-                    onClick={handleEditSave}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditSave();
+                    }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Check className="h-4 w-4 text-green-500" />
                   </button>
                   <button
-                    onClick={handleEditCancel}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditCancel();
+                    }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <X className="h-4 w-4 text-destructive" />
@@ -119,13 +161,19 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               ) : (
                 <>
                   <button
-                    onClick={() => handleEditStart(conversation)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditStart(conversation);
+                    }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => toggleFavorite(conversation.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(conversation.id);
+                    }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Star
@@ -137,7 +185,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     />
                   </button>
                   <button
-                    onClick={() => deleteConversation(conversation.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteConversation(conversation.id);
+                    }}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <Trash2 className="h-4 w-4" />

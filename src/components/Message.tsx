@@ -22,6 +22,25 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
   // Store copied state for each code block
   const [copiedBlocks, setCopiedBlocks] = useState<Record<string, boolean>>({});
 
+  const getFormattedTime = (timestamp: string | undefined | number) => {
+    if (!timestamp) {
+      return "Just now";
+    }
+    try {
+      const date =
+        typeof timestamp === "string"
+          ? new Date(timestamp)
+          : new Date(Number(timestamp));
+      if (isNaN(date.getTime())) {
+        return "Just now";
+      }
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      console.error("Error formatting time:", error);
+      return "Just now";
+    }
+  };
+
   // Generate a simple hash for strings to use as IDs
   const generateHashId = (str: string): string => {
     let hash = 0;
@@ -67,7 +86,7 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           {isUser ? "You" : "AI Assistant"}
         </span>
         <span className="text-muted-foreground order-2">
-          {formatDistanceToNow(message.timestamp, { addSuffix: true })}
+          {getFormattedTime(message.created_at || message.timestamp)}
         </span>
         {!isUser && (
           <span className="text-muted-foreground order-3">

@@ -3,11 +3,18 @@ import { persist } from "zustand/middleware";
 import { v4 as uuidv4 } from "uuid";
 import type {
   Conversation,
-  Message,
   ModelType,
+  Message,
   UserPreferences,
 } from "../types";
 import { User } from "@supabase/supabase-js";
+import {
+  createConversation,
+  deleteConversation as deleteConversationApi,
+  getConversations,
+} from "../api/conversations";
+import { sendMessage as sendMessageApi } from "../api/chatInput";
+import api from "../api/api";
 
 interface ChatState {
   conversations: Conversation[];
@@ -15,20 +22,22 @@ interface ChatState {
   userPreferences: UserPreferences;
   isProcessing: boolean;
   user: User | null;
-  addConversation: () => string;
-  addMessage: (content: string, role: "user" | "assistant") => void;
+  isFetchingConversations: boolean;
+  isCreatingConversation: boolean;
+  lastConversationCreated: number;
+  addConversation: () => Promise<string | undefined | null>;
+  addMessage: (content: string, role: "user" | "assistant") => Promise<void>;
+  updateMessagesFromServer: (conversationId: string) => Promise<void>;
   updateConversation: (id: string, updates: Partial<Conversation>) => void;
-  deleteConversation: (id: string) => void;
+  deleteConversation: (id: string) => Promise<void>;
   setCurrentConversation: (id: string) => void;
   setModel: (model: ModelType) => void;
   toggleFavorite: (id: string) => void;
   updateUserPreferences: (preferences: Partial<UserPreferences>) => void;
   setProcessing: (processing: boolean) => void;
   setUser: (user: User | null) => void;
+  fetchConversations: () => Promise<void>;
 }
-
-
-
 
 const useStore = create<ChatState>()(
   persist(
@@ -36,6 +45,9 @@ const useStore = create<ChatState>()(
       conversations: [],
       currentConversationId: null,
       isProcessing: false,
+      isFetchingConversations: false,
+      isCreatingConversation: false,
+      lastConversationCreated: 0,
       user: null,
       userPreferences: {
         theme: "system",
@@ -46,70 +58,184 @@ const useStore = create<ChatState>()(
 
       setUser: (user) => set({ user }),
 
-      addConversation: () => {
-        const newConversation: Conversation = {
-          id: uuidv4(),
-          title: "New Chat",
-          messages: [],
-          model: "gpt-4",
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          favorite: false,
-        };
+      fetchConversations: async () => {
+        const state = get();
+        if (state.isFetchingConversations) return;
 
-        set((state) => ({
-          conversations: [newConversation, ...state.conversations],
-          currentConversationId: newConversation.id,
-        }));
-        console.log("New conversation added:", newConversation.id);
-        return newConversation.id;
+        try {
+          set({ isFetchingConversations: true });
+          const conversations = await getConversations();
+          if (conversations) {
+            set({
+              conversations,
+              // Clear any stale creation state
+              isCreatingConversation: false,
+              lastConversationCreated: 0,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch conversations:", error);
+        } finally {
+          set({ isFetchingConversations: false });
+        }
       },
 
-      addMessage: (content: string, role: "user" | "assistant") => {
+      addConversation: async () => {
+        const state = get();
+        if (state.isCreatingConversation) return;
+
+        // Prevent rapid creation attempts
+        const now = Date.now();
+        if (now - state.lastConversationCreated < 2000) {
+          return state.currentConversationId;
+        }
+
+        try {
+          set({ isCreatingConversation: true });
+          const newConversation = await createConversation();
+          if (newConversation) {
+            set((state) => ({
+              conversations: [newConversation, ...state.conversations].sort(
+                (a, b) =>
+                  new Date(b.updated_at).getTime() -
+                  new Date(a.updated_at).getTime()
+              ),
+              currentConversationId: newConversation.id,
+              lastConversationCreated: now,
+            }));
+            return newConversation.id;
+          }
+        } catch (error) {
+          console.error("Failed to create conversation:", error);
+        } finally {
+          set({ isCreatingConversation: false });
+        }
+      },
+
+      addMessage: async (content: string, role: "user" | "assistant") => {
         const { currentConversationId, conversations } = get();
-        if (!currentConversationId) 
-          
-          return;
+        if (!currentConversationId) return;
+
+        const currentConversation = conversations.find(
+          (c) => c.id === currentConversationId
+        );
+        if (!currentConversation) return;
 
         const newMessage: Message = {
           id: uuidv4(),
+          conversation_id: currentConversationId,
           content,
           role,
-          model:
-            conversations.find((c) => c.id === currentConversationId)?.model ||
-            "gpt-4",
-          timestamp: Date.now(),
+          model: currentConversation.model || "gemini",
+          created_at: new Date().toISOString(),
         };
 
+        // Update local state immediately
         set((state) => ({
-          conversations: state.conversations.map((conv) =>
-            conv.id === currentConversationId
-              ? {
-                  ...conv,
-                  messages: [...conv.messages, newMessage],
-                  updatedAt: Date.now(),
-                }
-              : conv
-          ),
+          conversations: state.conversations
+            .map((conv) =>
+              conv.id === currentConversationId
+                ? {
+                    ...conv,
+                    messages: [...(conv.messages || []), newMessage],
+                    updated_at: new Date().toISOString(),
+                  }
+                : conv
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at).getTime() -
+                new Date(a.updated_at).getTime()
+            ),
         }));
+
+        if (role === "user") {
+          set({ isProcessing: true });
+          try {
+            await sendMessageApi(
+              currentConversation.model || "gemini",
+              content,
+              currentConversationId
+            );
+            // After successful API call, update conversation from server
+            await get().updateMessagesFromServer(currentConversationId);
+          } catch (error) {
+            console.error("Error in sendMessage:", error);
+          } finally {
+            set({ isProcessing: false });
+          }
+        }
+      },
+
+      updateMessagesFromServer: async (conversationId: string) => {
+        try {
+          const { data: messages } = await api.get<Message[]>(
+            `/conversations/${conversationId}/messages`
+          );
+
+          if (messages) {
+            set((state) => ({
+              conversations: state.conversations
+                .map((conv) =>
+                  conv.id === conversationId
+                    ? {
+                        ...conv,
+                        messages,
+                        updated_at: new Date().toISOString(),
+                      }
+                    : conv
+                )
+                .sort(
+                  (a, b) =>
+                    new Date(b.updated_at).getTime() -
+                    new Date(a.updated_at).getTime()
+                ),
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching messages:", error);
+        }
       },
 
       updateConversation: (id: string, updates: Partial<Conversation>) => {
         set((state) => ({
-          conversations: state.conversations.map((conv) =>
-            conv.id === id ? { ...conv, ...updates } : conv
-          ),
+          conversations: state.conversations
+            .map((conv) =>
+              conv.id === id
+                ? {
+                    ...conv,
+                    ...updates,
+                    updated_at: new Date().toISOString(),
+                  }
+                : conv
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at).getTime() -
+                new Date(a.updated_at).getTime()
+            ),
         }));
       },
 
-      deleteConversation: (id: string) => {
-        set((state) => ({
-          conversations: state.conversations.filter((conv) => conv.id !== id),
-          currentConversationId:
-            state.currentConversationId === id
-              ? state.conversations[0]?.id || null
-              : state.currentConversationId,
-        }));
+      deleteConversation: async (id: string) => {
+        try {
+          await deleteConversationApi(id);
+          set((state) => {
+            const newConversations = state.conversations.filter(
+              (conv) => conv.id !== id
+            );
+            return {
+              conversations: newConversations,
+              currentConversationId:
+                state.currentConversationId === id
+                  ? newConversations[0]?.id || null
+                  : state.currentConversationId,
+            };
+          });
+        } catch (error) {
+          console.error("Failed to delete conversation:", error);
+          throw error;
+        }
       },
 
       setCurrentConversation: (id: string) => {
@@ -121,17 +247,41 @@ const useStore = create<ChatState>()(
         if (!currentConversationId) return;
 
         set((state) => ({
-          conversations: state.conversations.map((conv) =>
-            conv.id === currentConversationId ? { ...conv, model } : conv
-          ),
+          conversations: state.conversations
+            .map((conv) =>
+              conv.id === currentConversationId
+                ? {
+                    ...conv,
+                    model,
+                    updated_at: new Date().toISOString(),
+                  }
+                : conv
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at).getTime() -
+                new Date(a.updated_at).getTime()
+            ),
         }));
       },
 
       toggleFavorite: (id: string) => {
         set((state) => ({
-          conversations: state.conversations.map((conv) =>
-            conv.id === id ? { ...conv, favorite: !conv.favorite } : conv
-          ),
+          conversations: state.conversations
+            .map((conv) =>
+              conv.id === id
+                ? {
+                    ...conv,
+                    favorite: !conv.favorite,
+                    updated_at: new Date().toISOString(),
+                  }
+                : conv
+            )
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at).getTime() -
+                new Date(a.updated_at).getTime()
+            ),
         }));
       },
 
@@ -148,7 +298,6 @@ const useStore = create<ChatState>()(
     {
       name: "chat-storage",
       partialize: (state) => ({
-        conversations: state.conversations,
         userPreferences: state.userPreferences,
       }),
     }

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { Button } from "../components/ui/button";
 import supabase from "../supabase";
-import useStore from "../store/useStore";
 
 export const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +11,6 @@ export const Auth: React.FC = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { addConversation, setCurrentConversation } = useStore();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,22 +18,27 @@ export const Auth: React.FC = () => {
     setLoading(true);
 
     try {
+      let session;
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+        session = data.session;
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
+        session = data.session;
       }
 
-      const newConversationId = addConversation();
-      setCurrentConversation(newConversationId);
+      if (session?.access_token) {
+        localStorage.setItem("token", session.access_token);
+      }
+
       navigate("/");
     } catch (err: any) {
       setError(err.message);

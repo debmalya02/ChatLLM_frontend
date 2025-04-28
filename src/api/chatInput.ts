@@ -1,20 +1,40 @@
-import api from './api'
+import api from "./api";
+import { Message } from "../types/index";
 
-
-export const sendMessage = async (model: string, message: string) => {
+export const sendMessage = async (
+  model: string,
+  message: string,
+  conversationId: string
+): Promise<string> => {
   try {
-    if (!model || !message) {
-      throw new Error("Model and message are required.");
-    }
+    const response = await api.post(
+      `/conversations/${conversationId}/messages`,
+      {
+        model,
+        content: message,
+      }
+    );
 
-    const response = await api.post("/message/send", {
-      model,
-      message
-    });
-
+    // Return only the assistant's response
     return response.data.response;
-  } catch (error: any) {
-    console.error("Chat Input Error:", error);
-    throw new Error(error.response?.data?.error || "Unexpected error occurred");
+  } catch (error) {
+    console.error("Error in sendMessage:", error);
+    throw error;
   }
 };
+
+export async function getMessages(
+  conversationId: string
+): Promise<Message[] | void> {
+  try {
+    const res = await api.get<Message[]>(
+      `/conversations/${conversationId}/messages`
+    );
+    return res.data;
+  } catch (error) {
+    console.error(
+      `Failed to fetch messages for conversation ${conversationId}:`,
+      error
+    );
+  }
+}

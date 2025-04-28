@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 import { Home } from "./pages/Home";
 import { Auth } from "./pages/Auth";
 import useStore from "./store/useStore";
@@ -63,6 +64,7 @@ function App() {
           />
         </Routes>
       </div>
+      <Toaster richColors position="bottom-right" />
     </BrowserRouter>
   );
 }

@@ -5,7 +5,7 @@ import { ChatInput } from "./ChatInput";
 import { ModelSelector } from "./ModelSelector";
 import { Loader2 } from "lucide-react";
 import { EmptyState } from "./EmptyState";
-import { SidebarInset } from "../components/ui/sidebar"
+import { SidebarInset } from "../components/ui/sidebar";
 
 export const ChatContainer: React.FC = () => {
   const { conversations, currentConversationId, isProcessing } = useStore();
@@ -20,7 +20,8 @@ export const ChatContainer: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col">
-        {currentConversation?.messages.length ? (
+        {currentConversation?.messages &&
+        currentConversation.messages.length > 0 ? (
           currentConversation.messages.map((message) => (
             <Message key={message.id} message={message} />
           ))
@@ -38,7 +39,7 @@ export const ChatContainer: React.FC = () => {
         )}
       </div>
 
-      <ChatInput />
+      {currentConversation && <ChatInput />}
     </SidebarInset>
   );
 };

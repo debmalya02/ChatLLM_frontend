@@ -2,47 +2,29 @@ import React, { useState, useRef, useCallback } from "react";
 import { Paperclip, Send } from "lucide-react";
 import { Button } from "./ui/button";
 import useStore from "../store/useStore";
-import { sendMessage } from "../api/chatInput";
 
 export const ChatInput: React.FC = () => {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const {
-    addMessage,
-    isProcessing,
-    setProcessing,
-    conversations,
-    currentConversationId,
-  } = useStore();
-
-  // Get the selected model from the active conversation
-  const selectedModel =
-    conversations.find((c) => c.id === currentConversationId)?.model ||
-    "gemini";
+  const { isProcessing, currentConversationId, addMessage } = useStore();
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
 
-      if (!message.trim() || isProcessing) return;
+      if (!message.trim() || !currentConversationId) return;
 
-      addMessage(message.trim(), "user");
-      setMessage("");
+      const messageContent = message.trim();
+      setMessage(""); // Clear input immediately
 
-      setProcessing(true);
       try {
-        const response = await sendMessage(selectedModel, message.trim());
-        // console.log('response',response)
-        addMessage(response, "assistant");
+        // Add message to UI immediately and handle server communication in the background
+        await addMessage(messageContent, "user");
       } catch (error) {
-        console.error("Error fetching response:", error);
-        setProcessing(false);
-        addMessage("Error getting response. Please try again.", "assistant");
-      } finally {
-        setProcessing(false);
+        console.error("Error sending message:", error);
       }
     },
-    [message, isProcessing, addMessage]
+    [message, currentConversationId, addMessage]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

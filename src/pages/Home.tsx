@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { ChatContainer } from "../components/ChatContainer";
 import Sidebar from "../components/Sidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
@@ -10,27 +10,37 @@ export const Home: React.FC = () => {
     currentConversationId,
     addConversation,
     setCurrentConversation,
+    fetchConversations,
+    isFetchingConversations,
   } = useStore();
 
-  // Create a new conversation if none exists
-  React.useEffect(() => {
-    if (conversations.length > 0 && !currentConversationId) {
-      // If there are conversations but no current selection, select the most recent one
-      const mostRecentConversation = conversations.reduce((prev, current) =>
-        current.updatedAt > prev.updatedAt ? current : prev
-      );
-      setCurrentConversation(mostRecentConversation.id);
-    } else if (conversations.length === 0) {
-      // If no conversations exist, create a new one
-      const newId = addConversation();
-      setCurrentConversation(newId);
+  const initializationComplete = useRef(false);
+
+  // Single fetch on mount
+  useEffect(() => {
+    const initialize = async () => {
+      if (!initializationComplete.current) {
+        await fetchConversations();
+        initializationComplete.current = true;
+      }
+    };
+    initialize();
+  }, []);
+
+  // Handle conversation selection only after fetching is complete and there's no current selection
+  useEffect(() => {
+    if (!isFetchingConversations && !currentConversationId) {
+      // If we have conversations but no current selection, select the most recent one
+      if (conversations.length > 0) {
+        const mostRecentConversation = conversations.reduce((prev, current) =>
+          new Date(current.updated_at || 0) > new Date(prev.updated_at || 0)
+            ? current
+            : prev
+        );
+        setCurrentConversation(mostRecentConversation.id);
+      }
     }
-  }, [
-    conversations,
-    currentConversationId,
-    addConversation,
-    setCurrentConversation,
-  ]);
+  }, [conversations, currentConversationId, isFetchingConversations]);
 
   return (
     <SidebarProvider>
