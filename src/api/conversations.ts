@@ -16,7 +16,7 @@ export async function getConversationById(
 ): Promise<Conversation | void> {
   try {
     const res = await api.get<Conversation>(`/conversations/${id}`);
-    console.log(`Fetched Conversation (${id}):`, res.data);
+    console.log(`Fetched Conversation by (${id}):`, res.data);
     return res.data;
   } catch (error) {
     console.error(`Failed to fetch conversation with id ${id}:`, error);

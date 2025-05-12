@@ -9,6 +9,8 @@ import { SidebarInset } from "../components/ui/sidebar";
 
 export const ChatContainer: React.FC = () => {
   const { conversations, currentConversationId, isProcessing } = useStore();
+  console.log("Conversations:", conversations);
+  console.log("Current Conversation ID:", currentConversationId);
   const currentConversation = conversations.find(
     (conv) => conv.id === currentConversationId
   );
@@ -23,7 +25,7 @@ export const ChatContainer: React.FC = () => {
         {currentConversation?.messages &&
         currentConversation.messages.length > 0 ? (
           currentConversation.messages.map((message) => (
-            <Message key={message.id} message={message} />
+           <Message key={message.id} message={message} />
           ))
         ) : (
           <div className="flex-1 flex items-center justify-center">

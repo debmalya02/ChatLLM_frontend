@@ -2,8 +2,8 @@ import React, { useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
-  oneLight,
-  oneDark,
+  nightOwl,
+  coy,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type { Message as MessageType } from "../types";
 import { formatDistanceToNow } from "date-fns";
@@ -82,31 +82,25 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
       }`}
     >
       <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium order-1 text-foreground">
+        {/* <span className="font-medium order-1 text-foreground">
           {isUser ? "You" : "AI Assistant"}
-        </span>
-        <span className="text-muted-foreground order-2">
+        </span> */}
+        {/* <span className="text-muted-foreground order-2">
           {getFormattedTime(message.created_at || message.timestamp)}
-        </span>
+        </span> */}
         {!isUser && (
-          <span className="text-muted-foreground order-3">
-            using {message.model}
+          <span className="text-muted-foreground order-3 ml-4 capitalize">
+            {message.model}
           </span>
         )}
       </div>
 
       <div
         className={`max-w-[85%] md:max-w-[70%] rounded-lg p-4 transition-colors ${
-          isUser
-            ? "bg-primary text-primary-foreground ml-auto"
-            : "bg-muted text-foreground"
+          isUser ? "bg-primary-foreground text-primary ml-auto" : "text-primary"
         }`}
       >
-        <div
-          className={`prose prose-sm max-w-none transition-colors ${
-            isUser ? "prose-invert" : "dark:prose-invert"
-          }`}
-        >
+        <div className={`prose-sm max-w-none transition-colors `}>
           <ReactMarkdown
             components={{
               code: ({ className, children }) => {
@@ -133,13 +127,15 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
                       </button>
 
                       <SyntaxHighlighter
-                        style={isDark ? oneDark : oneLight}
+                        style={isDark ? nightOwl : coy}
                         language={match[1]}
                         customStyle={{
                           borderRadius: "0.375rem",
+                          border: "1px solid hsl(var(--primary-foreground))",
                           paddingRight: "2.5rem",
-                          backgroundColor: "var(--muted)",
-                          transition: "background-color 0.2s ease-in-out",
+                          paddingBottom: "1rem",
+                          paddingTop: "1rem",
+                          backgroundColor: "hsl(var(--muted))",
                         }}
                       >
                         {codeText}

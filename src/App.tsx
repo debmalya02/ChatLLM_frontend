@@ -18,8 +18,9 @@ function App() {
           window.matchMedia("(prefers-color-scheme: dark)").matches);
 
       document.documentElement.classList.toggle("dark", isDark);
+      userPreferences.theme = isDark ? "dark" : "light";
     };
-
+    
     // Update theme initially
     updateTheme();
 
